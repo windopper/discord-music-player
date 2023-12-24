@@ -1,7 +1,6 @@
 import {Guild, GuildChannelResolvable, GuildMember, StageChannel, VoiceChannel} from "discord.js";
 import {StreamConnection} from "../voice/StreamConnection";
 import {AudioResource, entersState, joinVoiceChannel, StreamType, VoiceConnectionStatus} from "@discordjs/voice";
-import ytdl from "discord-ytdl-core";
 import {
     DefaultPlayerOptions,
     DefaultPlaylistOptions,
@@ -19,6 +18,7 @@ import {
     Song,
     Utils
 } from "..";
+import playdl from 'play-dl'
 
 export class Queue<T = unknown> {
     public player: Player;
@@ -271,23 +271,18 @@ export class Queue<T = unknown> {
         if (song.seekTime)
             options.seek = song.seekTime;
 
-        let stream = ytdl(song.url, {
-            requestOptions: this.player.options.ytdlRequestOptions ?? {},
-            opusEncoded: false,
-            seek: options.seek ? options.seek / 1000 : 0,
-            fmt: 's16le',
-            encoderArgs: [],
-            quality: quality!.toLowerCase() === 'low' ? 'lowestaudio' : 'highestaudio',
-            highWaterMark: 1 << 25,
-            filter: 'audioonly'
+        let stream = await playdl.stream(song.url, {
+            discordPlayerCompatibility: true
         })
-            .on('error', (error: { message: string; }) => {
+        .catch((error: { message: string; }) => {
                 if (!/Status code|premature close/i.test(error.message))
                     this.player.emit('error', error.message === 'Video unavailable' ? 'VideoUnavailable' : error.message, this);
                 return;
             });
 
-        const resource: AudioResource<Song> = this.connection.createAudioStream(stream, {
+        if (!stream) throw new DMPError(DMPErrors.RESOURCE_NOT_READY);
+
+        const resource: AudioResource<Song> = this.connection.createAudioStream(stream.stream, {
             metadata: song,
             inputType: StreamType.Raw
         });
