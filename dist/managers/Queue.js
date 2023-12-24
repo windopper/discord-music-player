@@ -228,7 +228,8 @@ class Queue {
         if (song.seekTime)
             options.seek = song.seekTime;
         let stream = await play_dl_1.default.stream(song.url, {
-            discordPlayerCompatibility: true
+            discordPlayerCompatibility: true,
+            quality: 2
         })
             .catch((error) => {
             if (!/Status code|premature close/i.test(error.message))
@@ -239,7 +240,7 @@ class Queue {
             throw new __1.DMPError(__1.DMPErrors.RESOURCE_NOT_READY);
         const resource = this.connection.createAudioStream(stream.stream, {
             metadata: song,
-            inputType: voice_1.StreamType.Raw
+            inputType: stream.type
         });
         setTimeout(_ => {
             this.connection.playAudioStream(resource)
