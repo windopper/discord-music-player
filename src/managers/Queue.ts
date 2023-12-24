@@ -272,7 +272,8 @@ export class Queue<T = unknown> {
             options.seek = song.seekTime;
 
         let stream = await playdl.stream(song.url, {
-            discordPlayerCompatibility: true
+            discordPlayerCompatibility: true,
+            quality: 2
         })
         .catch((error: { message: string; }) => {
                 if (!/Status code|premature close/i.test(error.message))
@@ -284,7 +285,7 @@ export class Queue<T = unknown> {
 
         const resource: AudioResource<Song> = this.connection.createAudioStream(stream.stream, {
             metadata: song,
-            inputType: StreamType.Raw
+            inputType: stream.type
         });
 
         setTimeout(_ => {
