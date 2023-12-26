@@ -22,7 +22,7 @@ export interface PlayerOptions {
     deafenOnJoin?: boolean,
     timeout?: number,
     volume?: number,
-    quality?: 'low'|'high',
+    quality?: 'low' | 'medium' | 'high',
     localAddress?: string,
     ytdlRequestOptions?: object,
 }
@@ -40,6 +40,7 @@ export interface PlayerOptions {
  * @param {string} [localAddress] Custom ipv4/ipv6 address
  */
 export interface PlayOptions {
+    searchFrom?: 'youtube' | 'soundcloud' | 'spotify',
     uploadDate?: 'hour'|'today'|'week'|'month'|'year',
     duration?: 'short'|'long',
     sortBy?: 'relevance'|'date'|'view count'|'rating',
@@ -109,6 +110,7 @@ export const DefaultPlayerOptions: PlayerOptions = {
  * @param {boolean} [timecode=false] If url with timecode (?t=) provided, will play from that moment
  */
 export const DefaultPlayOptions: PlayOptions = {
+    searchFrom: 'youtube',
     sortBy: 'relevance',
     timecode: false
 };
