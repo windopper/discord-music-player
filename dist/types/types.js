@@ -30,6 +30,7 @@ exports.DefaultPlayerOptions = {
  * @param {boolean} [timecode=false] If url with timecode (?t=) provided, will play from that moment
  */
 exports.DefaultPlayOptions = {
+    searchFrom: 'youtube',
     sortBy: 'relevance',
     timecode: false
 };

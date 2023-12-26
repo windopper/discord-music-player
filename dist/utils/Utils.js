@@ -1,12 +1,32 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Utils = void 0;
 const __1 = require("..");
 const discord_js_1 = require("discord.js");
-const play_dl_1 = __importDefault(require("play-dl"));
+const play_dl_1 = __importStar(require("play-dl"));
 class Utils {
     /**
      *
@@ -42,34 +62,91 @@ class Utils {
     }
     /**
      * Search for Songs
-     * @param {string} Search
-     * @param {PlayOptions} [SOptions=DefaultPlayOptions]
-     * @param {Queue} Queue
-     * @param {number} [Limit=1]
+     * @param {string} search
+     * @param {PlayOptions} [options=DefaultPlayOptions]
+     * @param {Queue} queue
+     * @param {number} [limit=1]
      * @return {Promise<Song[]>}
      */
-    static async search(Search, SOptions = __1.DefaultPlayOptions, Queue, Limit = 1) {
-        SOptions = Object.assign({}, __1.DefaultPlayOptions, SOptions);
+    static async search(search, options = __1.DefaultPlayOptions, queue, limit = 1) {
+        options = Object.assign({}, __1.DefaultPlayOptions, options);
+        if (options.searchFrom == "soundcloud") {
+            return this.soundcloudSearch(search, options, queue, limit);
+        }
+        else if (options.searchFrom == "spotify") {
+            return this.spotifySearch(search, options, queue, limit);
+        }
+        else if (options.searchFrom == "youtube") {
+            return this.youtubeSearch(search, options, queue, limit);
+        }
+    }
+    static async spotifySearch(search, options = __1.DefaultPlayOptions, queue, limit = 1) {
         try {
-            let result = await play_dl_1.default.search(Search, {
+            if (play_dl_1.default.is_expired()) {
+                play_dl_1.default.refreshToken();
+            }
+            let spotifyResult = await play_dl_1.default.search(search, {
+                source: {
+                    spotify: "track"
+                },
+                limit
+            });
+            return spotifyResult.map(track => {
+                return new __1.Song({
+                    name: track.name,
+                    url: track.url,
+                    duration: this.msToTime(track.durationInMs),
+                    author: track.artists[0].name,
+                    isLive: false,
+                    thumbnail: track.thumbnail.url
+                }, queue, options.requestedBy);
+            });
+        }
+        catch (e) {
+            throw __1.DMPErrors.SEARCH_NULL;
+        }
+    }
+    static async youtubeSearch(search, options = __1.DefaultPlayOptions, queue, limit = 1) {
+        try {
+            let youtubeResult = await play_dl_1.default.search(search, {
                 source: {
                     youtube: "video"
-                }
+                },
+                limit
             });
-            let items = result;
-            let songs = items.map(item => {
-                if (item.type !== 'video')
-                    return null;
+            return youtubeResult.map(video => {
                 return new __1.Song({
-                    name: item.title,
-                    url: item.url,
-                    duration: item.durationRaw,
-                    author: item.channel?.name,
-                    isLive: item.live,
-                    thumbnail: item.thumbnails[0].url,
-                }, Queue, SOptions.requestedBy);
+                    name: video.title,
+                    url: video.url,
+                    duration: video.durationRaw,
+                    author: video.channel?.name ?? "Youtube Mix",
+                    isLive: false,
+                    thumbnail: video.thumbnails[0].url
+                }, queue, options.requestedBy);
             });
-            return songs;
+        }
+        catch (e) {
+            throw __1.DMPErrors.SEARCH_NULL;
+        }
+    }
+    static async soundcloudSearch(search, options = __1.DefaultPlayOptions, queue, limit = 1) {
+        try {
+            let spotifyResult = await play_dl_1.default.search(search, {
+                source: {
+                    soundcloud: "tracks"
+                },
+                limit
+            });
+            return spotifyResult.map(track => {
+                return new __1.Song({
+                    name: track.name,
+                    url: track.url,
+                    duration: this.msToTime(track.durationInMs),
+                    author: track.user.name,
+                    isLive: false,
+                    thumbnail: track.thumbnail,
+                }, queue, options.requestedBy);
+            });
         }
         catch (e) {
             throw __1.DMPErrors.SEARCH_NULL;
@@ -78,41 +155,88 @@ class Utils {
     /**
      * Search for Song via link
      * @param {string} search
-     * @param {PlayOptions} SOptions
-     * @param {Queue} Queue
+     * @param {PlayOptions} options
+     * @param {Queue} queue
      * @return {Promise<Song>}
      */
-    static async link(search, SOptions = __1.DefaultPlayOptions, Queue) {
+    static async link(search, options = __1.DefaultPlayOptions, queue) {
         let isSpotifyLink = this.regexList.Spotify.test(search);
         let isYoutubeLink = this.regexList.YouTubeVideo.test(search);
+        let soundcloudType = await play_dl_1.default.so_validate(search);
         if (isSpotifyLink) {
+            return this.spotifyLink(search, options, queue);
+        }
+        else if (isYoutubeLink) {
+            return this.youtubeLink(search, options, queue);
+        }
+        else if (soundcloudType === "track") {
+            return this.soundCloudLink(search, options, queue);
+        }
+        else
+            return null;
+    }
+    static async spotifyLink(url, options = __1.DefaultPlayOptions, queue) {
+        let spotifyType = play_dl_1.default.sp_validate(url);
+        if (spotifyType === "track") {
             try {
-                let spotifyResult = await play_dl_1.default.spotify(search);
-                if (spotifyResult.type === "track") {
-                    spotifyResult = spotifyResult;
-                    let searchResult = await this.search(`${spotifyResult.artists} - ${spotifyResult.name}`, SOptions, Queue);
-                    return searchResult[0];
+                if (play_dl_1.default.is_expired()) {
+                    await play_dl_1.default.refreshToken();
                 }
+                let spotifyResult = await play_dl_1.default.spotify(url);
+                spotifyResult = spotifyResult;
+                return new __1.Song({
+                    name: spotifyResult.name,
+                    author: spotifyResult.artists[0].name,
+                    duration: this.msToTime(spotifyResult.durationInMs),
+                    isLive: false,
+                    thumbnail: spotifyResult.thumbnail.url,
+                    url: url,
+                }, queue);
             }
             catch (e) {
                 throw __1.DMPErrors.INVALID_SPOTIFY;
             }
         }
-        else if (isYoutubeLink) {
-            let youtubeResult = await play_dl_1.default.video_info(search);
-            let videoTimeCode = this.parseVideoTimecode(search);
-            return new __1.Song({
-                name: youtubeResult.video_details.title,
-                url: search,
-                duration: this.msToTime((youtubeResult.video_details.durationInSec ?? 0) * 1000),
-                author: youtubeResult.video_details.channel.name,
-                isLive: youtubeResult.video_details.live,
-                thumbnail: youtubeResult.video_details.thumbnails[0].url,
-                seekTime: SOptions.timecode && videoTimeCode ? Number(videoTimeCode) * 1000 : null,
-            }, Queue, SOptions.requestedBy);
+    }
+    static async youtubeLink(url, options = __1.DefaultPlayOptions, queue) {
+        let youtubeType = play_dl_1.default.yt_validate(url);
+        if (youtubeType === "video") {
+            try {
+                let youtubeResult = await play_dl_1.default.video_info(url);
+                let videoTimeCode = this.parseVideoTimecode(url);
+                return new __1.Song({
+                    name: youtubeResult.video_details.title,
+                    url: url,
+                    duration: this.msToTime((youtubeResult.video_details.durationInSec ?? 0) * 1000),
+                    author: youtubeResult.video_details.channel.name,
+                    isLive: youtubeResult.video_details.live,
+                    thumbnail: youtubeResult.video_details.thumbnails[0].url,
+                    seekTime: options.timecode && videoTimeCode ? Number(videoTimeCode) * 1000 : null,
+                }, queue, options.requestedBy);
+            }
+            catch (e) {
+                throw __1.DMPErrors.INVALID_YOUTUBE;
+            }
         }
-        else
-            return null;
+    }
+    static async soundCloudLink(url, options = __1.DefaultPlayOptions, queue) {
+        const soundCloudType = await play_dl_1.default.so_validate(url);
+        if (soundCloudType == "track") {
+            try {
+                let soundCloudResult = await play_dl_1.default.soundcloud(url);
+                return new __1.Song({
+                    name: soundCloudResult.name,
+                    url: url,
+                    duration: this.msToTime(soundCloudResult.durationInMs),
+                    author: soundCloudResult.user.name,
+                    isLive: false,
+                    thumbnail: soundCloudResult.thumbnail[0]
+                }, queue, options.requestedBy);
+            }
+            catch (e) {
+                throw __1.DMPErrors.INVALID_SOUNDCLOUD;
+            }
+        }
     }
     /**
      * Gets the best result of a Search
@@ -137,71 +261,90 @@ class Utils {
     /**
      * Search for Playlist
      * @param {string} search
-     * @param {PlaylistOptions} Soptions
+     * @param {PlaylistOptions} options
      * @param {Queue} queue
      * @return {Promise<Playlist>}
      */
-    static async playlist(search, Soptions = __1.DefaultPlaylistOptions, queue) {
+    static async playlist(search, options = __1.DefaultPlaylistOptions, queue) {
         if (search instanceof __1.Playlist)
             return search;
-        let limit = Soptions.maxSongs ?? -1;
-        let isSpotifyPlayListLink = this.regexList.SpotifyPlaylist.test(search);
-        let isYoutubePlayListLink = this.regexList.YouTubePlaylist.test(search);
-        if (isSpotifyPlayListLink) {
-            let spotifyResult = await play_dl_1.default.spotify(search);
-            let spotifyPlayList;
-            if (spotifyResult.type === "album") {
-                spotifyResult = spotifyResult;
-                spotifyPlayList = {
-                    name: spotifyResult.name,
-                    author: spotifyResult.artists[0].name,
-                    url: search,
-                    songs: [],
-                    type: "album"
-                };
-            }
-            else if (spotifyResult.type === "playlist") {
-                spotifyResult = spotifyResult;
-                spotifyPlayList = {
-                    name: spotifyResult.name,
-                    author: spotifyResult.owner.name,
-                    url: search,
-                    songs: [],
-                    type: "playlist"
-                };
-            }
-            else {
-                throw __1.DMPErrors.INVALID_PLAYLIST;
-            }
-            spotifyPlayList.songs = (await Promise.all((await spotifyResult.all_tracks()).map(async (track, index) => {
-                if (limit !== -1 && index >= limit)
-                    return null;
-                const Result = await this.search(`${track.artists[0].name} - ${track.name}`, Soptions, queue).catch(() => null);
-                if (Result && Result[0]) {
-                    Result[0].data = Soptions.data;
-                    return Result[0];
-                }
-                else
-                    return null;
-            })))
-                .filter((V) => V !== null);
-            if (spotifyResult.tracksCount === 0)
-                throw __1.DMPErrors.INVALID_PLAYLIST;
-            if (Soptions.shuffle)
-                spotifyPlayList.songs = this.shuffle(spotifyPlayList.songs);
-            return new __1.Playlist(spotifyPlayList, queue, Soptions.requestedBy);
+        let spotifyPlayType = play_dl_1.default.sp_validate(search);
+        let youtubePlayType = play_dl_1.default.yt_validate(search);
+        let soundCloudType = await play_dl_1.default.so_validate(search);
+        if (spotifyPlayType === "playlist" || spotifyPlayType === "album") {
+            return this.spotifyPlayList(search, options, queue);
         }
-        else if (isYoutubePlayListLink) {
-            let PlaylistID = this.parsePlaylist(search);
+        else if (youtubePlayType === "playlist") {
+            return this.youtubePlayList(search, options, queue);
+        }
+        else if (soundCloudType === "playlist") {
+            return this.soundCloudPlayList(search, options, queue);
+        }
+        throw __1.DMPErrors.INVALID_PLAYLIST;
+    }
+    static async spotifyPlayList(url, options = __1.DefaultPlayOptions, queue) {
+        if (play_dl_1.default.is_expired()) {
+            await play_dl_1.default.refreshToken();
+        }
+        let spotifyType = play_dl_1.default.sp_validate(url);
+        let spotifyResult = await play_dl_1.default.spotify(url);
+        let spotifyPlayList;
+        let limit = options.maxSongs ?? -1;
+        if (spotifyType === "album") {
+            spotifyResult = spotifyResult;
+            spotifyPlayList = {
+                name: spotifyResult.name,
+                author: spotifyResult.artists[0].name,
+                url: url,
+                songs: [],
+                type: "album"
+            };
+        }
+        else if (spotifyType === "playlist") {
+            spotifyResult = spotifyResult;
+            spotifyPlayList = {
+                name: spotifyResult.name,
+                author: spotifyResult.owner.name,
+                url: url,
+                songs: [],
+                type: "playlist"
+            };
+        }
+        else {
+            throw __1.DMPErrors.INVALID_PLAYLIST;
+        }
+        spotifyPlayList.songs = (await Promise.all((await spotifyResult.all_tracks()).map(async (track, index) => {
+            if (limit !== -1 && index >= limit)
+                return null;
+            const Result = await this.search(`${track.artists[0].name} - ${track.name}`, options, queue).catch(() => null);
+            if (Result && Result[0]) {
+                Result[0].data = options.data;
+                return Result[0];
+            }
+            else
+                return null;
+        })))
+            .filter((V) => V !== null);
+        if (spotifyResult.tracksCount === 0)
+            throw __1.DMPErrors.INVALID_PLAYLIST;
+        if (options.shuffle)
+            spotifyPlayList.songs = this.shuffle(spotifyPlayList.songs);
+        return new __1.Playlist(spotifyPlayList, queue, options.requestedBy);
+    }
+    static async youtubePlayList(url, options = __1.DefaultPlayOptions, queue) {
+        let limit = options.maxSongs ?? -1;
+        const youtubeType = (0, play_dl_1.yt_validate)(url);
+        if (youtubeType === "playlist") {
+            let PlaylistID = this.parsePlaylist(url);
             if (!PlaylistID)
                 throw __1.DMPErrors.INVALID_PLAYLIST;
-            let youtubeResult = await play_dl_1.default.playlist_info(search);
+            let youtubeResult = await play_dl_1.default.playlist_info(url);
             if (!youtubeResult || Object.keys(youtubeResult).length === 0)
                 throw __1.DMPErrors.INVALID_PLAYLIST;
             let youtubePlaylist = {
                 name: youtubeResult.title,
                 author: youtubeResult.channel.name ?? "Youtube Mix",
-                url: search,
+                url: url,
                 songs: [],
                 type: 'playlist'
             };
@@ -217,18 +360,57 @@ class Utils {
                     author: video.channel.name,
                     isLive: video.live,
                     thumbnail: video.thumbnails[0].url,
-                }, queue, Soptions.requestedBy);
-                song.data = Soptions.data;
+                }, queue, options.requestedBy);
+                song.data = options.data;
                 return song;
             })
-                .filter((V) => V !== null);
+                .filter((v) => v !== null);
             if (youtubePlaylist.songs.length === 0)
                 throw __1.DMPErrors.INVALID_PLAYLIST;
-            if (Soptions.shuffle)
+            if (options.shuffle)
                 youtubePlaylist.songs = this.shuffle(youtubePlaylist.songs);
-            return new __1.Playlist(youtubePlaylist, queue, Soptions.requestedBy);
+            return new __1.Playlist(youtubePlaylist, queue, options.requestedBy);
         }
-        throw __1.DMPErrors.INVALID_PLAYLIST;
+        else
+            throw __1.DMPErrors.INVALID_PLAYLIST;
+    }
+    static async soundCloudPlayList(url, options = __1.DefaultPlayOptions, queue) {
+        let limit = options.maxSongs ?? -1;
+        const soundCloudType = await play_dl_1.default.so_validate(url);
+        if (soundCloudType === "playlist") {
+            let soundCloudResult = await play_dl_1.default.soundcloud(url);
+            if (soundCloudResult.tracksCount === 0)
+                throw __1.DMPErrors.INVALID_PLAYLIST;
+            let soundCloudPlayList = {
+                name: soundCloudResult.name,
+                author: soundCloudResult.user.name,
+                songs: [],
+                type: "playlist",
+                url: soundCloudResult.url
+            };
+            soundCloudPlayList.songs = (await soundCloudResult.all_tracks()).map((value, index) => {
+                if (limit !== -1 && index >= limit)
+                    return null;
+                let song = new __1.Song({
+                    author: value.user.name,
+                    duration: this.msToTime(value.durationInMs),
+                    isLive: false,
+                    name: value.name,
+                    thumbnail: value.thumbnail[0],
+                    url: value.url
+                }, queue, options.requestedBy);
+                song.data = options.data;
+                return song;
+            });
+            if (soundCloudPlayList.songs.length === 0)
+                throw __1.DMPErrors.INVALID_PLAYLIST;
+            if (options.shuffle)
+                soundCloudPlayList.songs = this.shuffle(soundCloudPlayList.songs);
+            return new __1.Playlist(soundCloudPlayList, queue, options.requestedBy);
+        }
+        else {
+            throw __1.DMPErrors.INVALID_PLAYLIST;
+        }
     }
     /**
      * Shuffles an array

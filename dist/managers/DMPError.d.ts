@@ -55,7 +55,8 @@ export declare enum DMPErrors {
     SEARCH_NULL = "SearchIsNull",
     INVALID_PLAYLIST = "InvalidPlaylist",
     INVALID_SPOTIFY = "InvalidSpotify",
-    INVALID_APPLE = "InvalidApple",
+    INVALID_SOUNDCLOUD = "InvalidSoundcloud",
+    INVALID_YOUTUBE = "InvalidYoutube",
     UNKNOWN_SONG = "UnknownSong",
     INVALID_INDEX = "InvalidIndex"
 }

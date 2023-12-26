@@ -33,21 +33,27 @@ export declare class Utils {
     static parsePlaylist(url: string): string | null;
     /**
      * Search for Songs
-     * @param {string} Search
-     * @param {PlayOptions} [SOptions=DefaultPlayOptions]
-     * @param {Queue} Queue
-     * @param {number} [Limit=1]
+     * @param {string} search
+     * @param {PlayOptions} [options=DefaultPlayOptions]
+     * @param {Queue} queue
+     * @param {number} [limit=1]
      * @return {Promise<Song[]>}
      */
-    static search(Search: string, SOptions: PlayOptions, Queue: Queue, Limit?: number): Promise<Song[]>;
+    static search(search: string, options: PlayOptions, queue: Queue, limit?: number): Promise<Song[]>;
+    static spotifySearch(search: string, options: PlayOptions, queue: Queue, limit?: number): Promise<Song[]>;
+    static youtubeSearch(search: string, options: PlayOptions, queue: Queue, limit?: number): Promise<Song[]>;
+    static soundcloudSearch(search: string, options: PlayOptions, queue: Queue, limit?: number): Promise<Song[]>;
     /**
      * Search for Song via link
      * @param {string} search
-     * @param {PlayOptions} SOptions
-     * @param {Queue} Queue
+     * @param {PlayOptions} options
+     * @param {Queue} queue
      * @return {Promise<Song>}
      */
-    static link(search: string, SOptions: PlayOptions, Queue: Queue): Promise<Song>;
+    static link(search: string, options: PlayOptions, queue: Queue): Promise<Song>;
+    static spotifyLink(url: string, options: PlayOptions, queue: Queue): Promise<Song>;
+    static youtubeLink(url: string, options: PlayOptions, queue: Queue): Promise<Song>;
+    static soundCloudLink(url: string, options: PlayOptions, queue: Queue): Promise<Song>;
     /**
      * Gets the best result of a Search
      * @param {Song|string} Search
@@ -59,11 +65,20 @@ export declare class Utils {
     /**
      * Search for Playlist
      * @param {string} search
-     * @param {PlaylistOptions} Soptions
+     * @param {PlaylistOptions} options
      * @param {Queue} queue
      * @return {Promise<Playlist>}
      */
-    static playlist(search: Playlist | string, Soptions: PlaylistOptions & {
+    static playlist(search: Playlist | string, options: PlaylistOptions & {
+        data?: any;
+    }, queue: Queue): Promise<Playlist>;
+    static spotifyPlayList(url: string, options: PlaylistOptions & {
+        data?: any;
+    }, queue: Queue): Promise<Playlist>;
+    static youtubePlayList(url: string, options: PlaylistOptions & {
+        data?: any;
+    }, queue: Queue): Promise<Playlist>;
+    static soundCloudPlayList(url: string, options: PlaylistOptions & {
         data?: any;
     }, queue: Queue): Promise<Playlist>;
     /**
