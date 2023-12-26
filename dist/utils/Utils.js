@@ -184,7 +184,7 @@ class Utils {
                 }
                 let spotifyResult = await play_dl_1.default.spotify(url);
                 spotifyResult = spotifyResult;
-                const result = await this.search(`${spotifyResult.artists[0].name} - ${spotifyResult.name}`, options, queue).catch(() => null)[0];
+                const result = await this.search(`${spotifyResult.artists[0].name} - ${spotifyResult.name}`, options, queue).catch(() => null);
                 if (result && result[0]) {
                     return result[0];
                 }

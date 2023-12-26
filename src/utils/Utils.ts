@@ -197,7 +197,7 @@ export class Utils {
                     `${spotifyResult.artists[0].name} - ${spotifyResult.name}`,
                     options,
                     queue
-                ).catch(() => null)[0];
+                ).catch(() => null);
 
                 if (result && result[0]) {
                     return result[0];
