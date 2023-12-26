@@ -192,14 +192,16 @@ export class Utils {
                 }
                 let spotifyResult = await playdl.spotify(url)
                 spotifyResult = spotifyResult as SpotifyTrack
-                return new Song({
-                    name: spotifyResult.name,
-                    author: spotifyResult.artists[0].name,
-                    duration: this.msToTime(spotifyResult.durationInMs),
-                    isLive: false,
-                    thumbnail: spotifyResult.thumbnail.url,
-                    url: url,
-                }, queue)
+
+                const result = await this.search(
+                    `${spotifyResult.artists[0].name} - ${spotifyResult.name}`,
+                    options,
+                    queue
+                ).catch(() => null)[0];
+
+                if (result && result[0]) {
+                    return result[0];
+                } else return null;
             } catch (e) {
                 throw DMPErrors.INVALID_SPOTIFY;
             }

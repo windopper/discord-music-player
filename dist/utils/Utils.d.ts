@@ -50,8 +50,8 @@ export declare class Utils {
      * @param {Queue} queue
      * @return {Promise<Song>}
      */
-    static link(search: string, options: PlayOptions, queue: Queue): Promise<Song>;
-    static spotifyLink(url: string, options: PlayOptions, queue: Queue): Promise<Song>;
+    static link(search: string, options: PlayOptions, queue: Queue): Promise<any>;
+    static spotifyLink(url: string, options: PlayOptions, queue: Queue): Promise<any>;
     static youtubeLink(url: string, options: PlayOptions, queue: Queue): Promise<Song>;
     static soundCloudLink(url: string, options: PlayOptions, queue: Queue): Promise<Song>;
     /**
