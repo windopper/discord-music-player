@@ -241,7 +241,7 @@ export class Utils {
                     duration: this.msToTime(soundCloudResult.durationInMs),
                     author: soundCloudResult.user.name,
                     isLive: false,
-                    thumbnail: soundCloudResult.thumbnail[0]
+                    thumbnail: soundCloudResult.thumbnail
                 } as RawSong, queue, options.requestedBy)
             }
             catch (e) {
@@ -448,7 +448,7 @@ export class Utils {
                     duration: this.msToTime(value.durationInMs),
                     isLive: false,
                     name: value.name,
-                    thumbnail: value.thumbnail[0],
+                    thumbnail: value.thumbnail,
                     url: value.url
                 }, queue, options.requestedBy)
                 song.data = options.data
